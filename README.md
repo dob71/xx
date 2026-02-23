@@ -33,22 +33,38 @@ sudo apt-get install jq curl xsel
 
 ## Configuration
 
-Edit the script to configure your LLM API endpoint:
+Configuration can be set via environment variables (recommended) or by editing the script.
+
+### Environment Variables
+
+Set these `XX_` prefixed environment variables:
 
 ```bash
-URL="http://192.168.0.123:5000/v1/chat/completions"  # Your API endpoint
-API_KEY="your-api-key-here"                          # Your API key
-MODEL="Qwen2.5-Coder-32B-Instruct-q8.0"              # Model name
+export XX_URL="http://192.168.0.156:11434/v1/chat/completions"  # API endpoint
+export XX_API_KEY="ollama"                                       # API key
+export XX_MODEL="qwen2.5-coder:32b"                              # Model name
+```
+
+Add these to your `~/.bashrc` for persistence.
+
+### Script Configuration
+
+Alternatively, edit the script defaults directly:
+
+```bash
+URL="${XX_URL:-http://192.168.0.156:11434/v1/chat/completions}"
+API_KEY="${XX_API_KEY:-ollama}"
+MODEL="${XX_MODEL:-qwen2.5-coder:32b}"
 ```
 
 ### Ollama Users
 
-For Ollama, set `API_KEY="ollama"` to enable the 8-hour model timeout (`keep_alive: 28800`). This prevents the model from unloading between requests, significantly improving response times:
+For Ollama, set `XX_API_KEY="ollama"` to enable the 8-hour model timeout (`keep_alive: 28800`). This prevents the model from unloading between requests, significantly improving response times:
 
 ```bash
-URL="http://192.168.0.156:11434/v1/chat/completions"
-API_KEY="ollama"                                     # Required for 8h timeout
-MODEL="qwen2.5-coder:32b"
+export XX_URL="http://192.168.0.156:11434/v1/chat/completions"
+export XX_API_KEY="ollama"                           # Required for 8h timeout
+export XX_MODEL="qwen2.5-coder:32b"
 ```
 
 ## Usage

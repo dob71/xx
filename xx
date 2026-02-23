@@ -1,9 +1,11 @@
 #!/bin/bash
 
 # API configuration (example for ollama, Q4_K_M quantized qwen2.5-coder:32b fits into a 24GB VRAM GPU)
-URL="http://192.168.0.156:11434/v1/chat/completions"
-API_KEY="ollama"
-MODEL="qwen2.5-coder:32b"
+# Can be overridden via environment variables: XX_URL, XX_API_KEY, XX_MODEL, XX_MAX_TOKENS
+URL="${XX_URL:-http://192.168.0.156:11434/v1/chat/completions}"
+API_KEY="${XX_API_KEY:-ollama}"
+MODEL="${XX_MODEL:-qwen2.5-coder:32b}"
+MAX_TOKENS="${XX_MAX_TOKENS:-2000}"
 
 # Get bash version (extract just the version number)
 BASH_VERSION_NUM="${BASH_VERSION%%[^0-9.]*}"
@@ -105,12 +107,14 @@ if [[ "$API_KEY" == "ollama" || -z "$API_KEY" ]]; then
     json_payload=$(jq -n \
         --arg model "$MODEL" \
         --arg content "$full_message" \
-        '{model: $model, messages: [{role: "user", content: $content}], max_tokens: 2000, keep_alive: 28800}')
+        --argjson max_tokens "$MAX_TOKENS" \
+        '{model: $model, messages: [{role: "user", content: $content}], max_tokens: $max_tokens, keep_alive: 28800}')
 else
     json_payload=$(jq -n \
         --arg model "$MODEL" \
         --arg content "$full_message" \
-        '{model: $model, messages: [{role: "user", content: $content}], max_tokens: 2000}')
+        --argjson max_tokens "$MAX_TOKENS" \
+        '{model: $model, messages: [{role: "user", content: $content}], max_tokens: $max_tokens}')
 fi
 
 # Make API request
