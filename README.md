@@ -2,6 +2,13 @@
 
 A simple bash wrapper for interacting with a fast local LLM (Large Language Model) directly from the command line. Get instant command suggestions and execute them with minimal friction.
 
+## Quick Install                                                                                                                                                                   
+
+```bash                                                                                                                                                                            
+curl -fsSL https://raw.githubusercontent.com/dob71/xx/master/xx -o xx && chmod 700 xx
+```
+Then edit the script or set up the environment vars with the LLM access credentials, and make sure the script is in your PATH.
+
 ## Overview
 
 `xx` translates natural language descriptions into executable bash commands using a local LLM API. It's designed for speed and convenience - no need to open a browser or chat interface.
