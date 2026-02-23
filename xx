@@ -66,7 +66,7 @@ prompt="You are a helpful assistant that can generate commands or answer questio
 Instructions:
 1. If the user describes an action, generate a bash $BASH_VERSION_NUM command to perform that action
 2. If the user asks a question without describing an action, answer the question directly
-3. Put any generated command at the end of your response in a bash code block like this:
+3. Put the generated command LAST in your response in a bash code block like this:
 \`\`\`bash
 command goes here
 \`\`\`
@@ -126,17 +126,40 @@ response=$(curl -s -X POST "$URL" \
 # Extract the command from the response
 #echo "Debug response: $response"
 content=$(echo "$response" | jq -r '.choices[0].message.content')
-# Extract command from bash code blocks - handle both ```bash and ```sh
-command=$(echo "$content" | sed -n '/```\(bash\|sh\)/,/```/p' | sed '1d;$d' | sed '/^$/d' | tr -d '\r')
+# Process line by line: transform markers to colors, count blocks, detect trailing content
+block_count=0
+in_block=0
+line_num=0
+last_close_line=0
+content_after_close=0
+cmd_buffer=""
 
-# Copy command to clipboard if found
-# Remove entire code blocks from text output for clean display
-clean_response=$(echo "$content" | sed '/```/,/```/d' | sed '/^$/d')
-[[ -n "$clean_response" ]] && echo "$clean_response"
-if [[ -n "$command" && "$command" != "null" ]]; then
-    copy_to_clipboard "$command"
-    # Show command with green text color
-    echo -e "\033[32m$command\033[0m"
-else
-    echo "No command found in response."
+while IFS= read -r line || [[ -n "$line" ]]; do
+    ((line_num++))
+    
+    if [[ "$line" =~ ^\`\`\`(bash|sh)$ ]]; then
+        printf '\033[32m'
+        in_block=1
+        ((block_count++))
+    elif [[ "$line" == "\`\`\`" && "$in_block" -eq 1 ]]; then
+        printf '\033[0m'
+        in_block=0
+        last_close_line=$line_num
+    elif [[ "$in_block" -eq 1 ]]; then
+        cmd_buffer+="$line"$'\n'
+        printf '%s\n' "$line"
+    else
+        printf '%s\n' "$line"
+        if [[ "$last_close_line" -gt 0 && "$line_num" -gt "$last_close_line" && "$line" =~ [^[:space:]] ]]; then
+            content_after_close=1
+        fi
+    fi
+done <<< "$content"
+
+# Strip trailing newline from cmd_buffer
+cmd_buffer="${cmd_buffer%$'\n'}"
+
+# Copy to clipboard if single block at end with no trailing content
+if [[ "$block_count" -eq 1 && "$content_after_close" -eq 0 && -n "$cmd_buffer" ]]; then
+    copy_to_clipboard "$cmd_buffer"
 fi
