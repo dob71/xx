@@ -115,6 +115,14 @@ xx convert this JSON to CSV @data.json
 - The LLM response text is displayed without code blocks for readability
 - If no command is found in the response, the full text is shown instead
 
+## Remote SSH Sessions
+
+When connecting to a remote system over SSH, the clipboard sync requires:
+- A terminal that supports **OSC 52 escape sequences** (e.g., [KiTTY](https://www.9bis.net/kitty/), iTerm2, Windows Terminal, or modern terminals)
+- The script automatically detects SSH sessions and uses OSC 52 to sync clipboard
+
+**To paste from the Linux clipboard:** Use `Ctrl+Shift+V`
+
 ## License
 
 MIT License - Feel free to modify and distribute.

@@ -11,6 +11,8 @@ BASH_VERSION_NUM="${BASH_VERSION%%[^0-9.]*}"
 # Function to copy to clipboard using OSC 52 (works over SSH)
 copy_to_clipboard_osc52() {
     local text="$1"
+    # Clear clipboard first by sending empty string, then send actual content
+    printf "\033]52;c;\a"
     # OSC 52 escape sequence: ESC ] 52 ; c ; base64_text BEL
     printf "\033]52;c;$(echo -n "$text" | base64 -w 0)\a"
 }
