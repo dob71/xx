@@ -100,10 +100,18 @@ full_message="$file_contents"$'\n\n'"$prompt"$'\n\n'"User request: $processed_in
 #echo "Debug request: $full_message"
 
 # Build JSON payload using jq to properly escape special characters
-json_payload=$(jq -n \
-    --arg model "$MODEL" \
-    --arg content "$full_message" \
-    '{model: $model, messages: [{role: "user", content: $content}], max_tokens: 2000}')
+# For Ollama (detected by ignored API key), add keep_alive: 28800 (8h) to prevent model unloading
+if [[ "$API_KEY" == "ollama" || -z "$API_KEY" ]]; then
+    json_payload=$(jq -n \
+        --arg model "$MODEL" \
+        --arg content "$full_message" \
+        '{model: $model, messages: [{role: "user", content: $content}], max_tokens: 2000, keep_alive: 28800}')
+else
+    json_payload=$(jq -n \
+        --arg model "$MODEL" \
+        --arg content "$full_message" \
+        '{model: $model, messages: [{role: "user", content: $content}], max_tokens: 2000}')
+fi
 
 # Make API request
 response=$(curl -s -X POST "$URL" \

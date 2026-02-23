@@ -41,6 +41,16 @@ API_KEY="your-api-key-here"                          # Your API key
 MODEL="Qwen2.5-Coder-32B-Instruct-q8.0"              # Model name
 ```
 
+### Ollama Users
+
+For Ollama, set `API_KEY="ollama"` to enable the 8-hour model timeout (`keep_alive: 28800`). This prevents the model from unloading between requests, significantly improving response times:
+
+```bash
+URL="http://192.168.0.156:11434/v1/chat/completions"
+API_KEY="ollama"                                     # Required for 8h timeout
+MODEL="qwen2.5-coder:32b"
+```
+
 ## Usage
 
 ### Basic Command Generation
