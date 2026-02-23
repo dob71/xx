@@ -1,0 +1,128 @@
+#!/bin/bash
+
+# API configuration (example for ollama, Q4_K_M quantized qwen2.5-coder:32b fits into a 24GB VRAM GPU)
+URL="http://192.168.0.156:11434/v1/chat/completions"
+API_KEY="ollama"
+MODEL="qwen2.5-coder:32b"
+
+# Get bash version (extract just the version number)
+BASH_VERSION_NUM="${BASH_VERSION%%[^0-9.]*}"
+
+# Function to copy to clipboard using OSC 52 (works over SSH)
+copy_to_clipboard_osc52() {
+    local text="$1"
+    # OSC 52 escape sequence: ESC ] 52 ; c ; base64_text BEL
+    printf "\033]52;c;$(echo -n "$text" | base64 -w 0)\a"
+}
+
+# Function to copy to primary selection (Shift+Insert paste)
+copy_to_clipboard() {
+    local text="$1"
+    
+    # Check if running in SSH remote session
+    if [[ -n "$SSH_CLIENT" || -n "$SSH_TTY" ]]; then
+        # Remote session - use OSC 52 escape sequences
+        copy_to_clipboard_osc52 "$text"
+        return 0
+    fi
+    
+    # Generic /dev/clipboard check (some terminals support this)
+    if [[ -f /dev/clipboard ]]; then
+        echo -n "$text" > /dev/clipboard
+        return 0
+    fi
+    
+    if command -v pbcopy >/dev/null 2>&1; then
+        # macOS - pbcopy uses clipboard by default, no primary selection
+        echo -n "$text" | pbcopy
+    elif command -v xclip >/dev/null 2>&1; then
+        # Linux with xclip - use primary selection for Shift+Insert
+        echo -n "$text" | xclip -selection primary
+    elif command -v xsel >/dev/null 2>&1; then
+        # Linux with xsel - use primary selection for Shift+Insert
+        echo -n "$text" | xsel --primary
+    fi
+}
+
+# Function to read file content
+read_file_content() {
+    local file="$1"
+    if [[ -f "$file" ]]; then
+        echo "=== FILE CONTENT START: $file ==="
+        cat "$file"
+        echo -e "\n=== FILE CONTENT END: $file ==="
+    else
+        echo "Warning: File '$file' not found."
+    fi
+}
+
+# Build the prompt with file contents
+prompt="You are a helpful assistant that can generate commands or answer questions.
+
+Instructions:
+1. If the user describes an action, generate a bash $BASH_VERSION_NUM command to perform that action
+2. If the user asks a question without describing an action, answer the question directly
+3. Put any generated command at the end of your response in a bash code block like this:
+\`\`\`bash
+command goes here
+\`\`\`
+"
+
+# Read user input from command line arguments
+user_input="$*"
+
+# Process file references in the input
+file_contents=""
+processed_input="$user_input"
+
+# Find all @filename or @ filename patterns anywhere in input
+declare -A processed_files
+while [[ "$processed_input" =~ @\ ?([^[:space:]]+) ]]; do
+    # This is a file reference (@filename or @ filename)
+    filename="${BASH_REMATCH[1]}"
+    matched_pattern="${BASH_REMATCH[0]}"
+    
+    # If we've already processed this file, break to avoid infinite loop
+    if [[ -n "${processed_files[$filename]}" ]]; then
+        break
+    fi
+    
+    processed_files[$filename]=1
+    file_contents+=$(read_file_content "$filename")
+    # Replace "@ file" with "@file" in processed_input, keep @filename
+    processed_input="${processed_input/$matched_pattern/$filename}"
+done
+
+# Combine file contents, prompt, and user input
+full_message="$file_contents"$'\n\n'"$prompt"$'\n\n'"User request: $processed_input"
+#echo "Debug request: $full_message"
+
+# Build JSON payload using jq to properly escape special characters
+json_payload=$(jq -n \
+    --arg model "$MODEL" \
+    --arg content "$full_message" \
+    '{model: $model, messages: [{role: "user", content: $content}], max_tokens: 2000}')
+
+# Make API request
+response=$(curl -s -X POST "$URL" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $API_KEY" \
+    -d "$json_payload")
+
+# Extract the command from the response
+#echo "Debug response: $response"
+content=$(echo "$response" | jq -r '.choices[0].message.content')
+# Extract command from bash code blocks - handle both ```bash and ```sh
+command=$(echo "$content" | sed -n '/```\(bash\|sh\)/,/```/p' | sed '1d;$d' | sed '/^$/d' | tr -d '\r')
+
+# Copy command to clipboard if found
+# Remove entire code blocks from text output for clean display
+clean_response=$(echo "$content" | sed '/```/,/```/d' | sed '/^$/d')
+[[ -n "$clean_response" ]] && echo "$clean_response"
+if [[ -n "$command" && "$command" != "null" ]]; then
+    copy_to_clipboard "$command"
+    # Show command with green text color
+    echo -e "\033[32m$command\033[0m"
+else
+    echo "No command found in response."
+fi
