@@ -100,6 +100,16 @@ xx analyze this file @config.json
 
 The content of `config.json` will be included in the LLM prompt.
 
+### Reading from Stdin
+
+Run `xx` without arguments to read the prompt from stdin:
+
+```bash
+echo "find files (name *.txt)" | xx
+xx <<<'find files (name *.txt)'
+cat file.txt | xx summarize this
+```
+
 ## Workflow
 
 1. **Describe** what you want to do:
@@ -147,6 +157,7 @@ xx convert this JSON to CSV @data.json
 - Multiline commands are supported and properly formatted
 - The LLM response text is displayed without code blocks for readability
 - If no command is found in the response, the full text is shown instead
+- OpenAI Responses API is auto-detected when the URL ends with `/responses` (e.g., `https://api.openai.com/v1/responses`)
 
 ## Remote SSH Sessions
 

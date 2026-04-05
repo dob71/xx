@@ -7,6 +7,27 @@ API_KEY="${XX_API_KEY:-ollama}"
 MODEL="${XX_MODEL:-qwen2.5-coder:32b}"
 MAX_TOKENS="${XX_MAX_TOKENS:-2000}"
 
+# Show help if --help or -h is passed
+if [[ "$1" == "--help" || "$1" == "-h" ]]; then
+    echo "xx - Simple Bash Command Line AI Assistant"
+    echo ""
+    echo "Usage: xx [PROMPT]"
+    echo "       echo \"prompt\" | xx"
+    echo "       xx < file.txt"
+    echo ""
+    echo "Translates natural language into executable bash commands using an LLM API."
+    echo ""
+    echo "Environment variables:"
+    echo "  XX_URL          API endpoint (default: http://192.168.0.156:11434/v1/chat/completions)"
+    echo "  XX_API_KEY      API key (set to 'ollama' for Ollama with 8h timeout)"
+    echo "  XX_MODEL        Model name (default: qwen2.5-coder:32b)"
+    echo "  XX_MAX_TOKENS   Maximum tokens (default: 2000)"
+    echo ""
+    echo "File context: Use @filename or @ filename to include file contents"
+    echo "Stdin input:   Run without arguments to read prompt from stdin"
+    exit 0
+fi
+
 # Detect API type based on URL
 if [[ "$URL" == */responses ]]; then
     USE_RESPONSES_API=1
@@ -79,8 +100,13 @@ command goes here
 \`\`\`
 "
 
-# Read user input from command line arguments
-user_input="$*"
+# Read user input from command line arguments or stdin
+if [[ $# -eq 0 ]]; then
+    # Read from stdin if no arguments provided
+    user_input=$(cat)
+else
+    user_input="$*"
+fi
 
 # Process file references in the input
 file_contents=""
