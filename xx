@@ -7,6 +7,13 @@ API_KEY="${XX_API_KEY:-ollama}"
 MODEL="${XX_MODEL:-qwen2.5-coder:32b}"
 MAX_TOKENS="${XX_MAX_TOKENS:-2000}"
 
+# Detect API type based on URL
+if [[ "$URL" == */responses ]]; then
+    USE_RESPONSES_API=1
+else
+    USE_RESPONSES_API=0
+fi
+
 # Get bash version (extract just the version number)
 BASH_VERSION_NUM="${BASH_VERSION%%[^0-9.]*}"
 
@@ -103,7 +110,13 @@ full_message="$file_contents"$'\n\n'"$prompt"$'\n\n'"User request: $processed_in
 
 # Build JSON payload using jq to properly escape special characters
 # For Ollama (detected by ignored API key), add keep_alive: 28800 (8h) to prevent model unloading
-if [[ "$API_KEY" == "ollama" || -z "$API_KEY" ]]; then
+if [[ "$USE_RESPONSES_API" -eq 1 ]]; then
+    # Responses API format
+    json_payload=$(jq -n \
+        --arg model "$MODEL" \
+        --arg content "$full_message" \
+        '{model: $model, input: $content}')
+elif [[ "$API_KEY" == "ollama" || -z "$API_KEY" ]]; then
     json_payload=$(jq -n \
         --arg model "$MODEL" \
         --arg content "$full_message" \
@@ -125,7 +138,11 @@ response=$(curl -s -X POST "$URL" \
 
 # Extract the command from the response
 #echo "Debug response: $response"
-content=$(echo "$response" | jq -r '.choices[0].message.content')
+if [[ "$USE_RESPONSES_API" -eq 1 ]]; then
+    content=$(echo "$response" | jq -r '.output_text // empty')
+else
+    content=$(echo "$response" | jq -r '.choices[0].message.content // empty')
+fi
 # Process line by line: transform markers to colors, count blocks, detect trailing content
 block_count=0
 in_block=0
